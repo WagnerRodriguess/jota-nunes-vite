@@ -25,6 +25,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/modeloPadrao"
           element={
@@ -33,6 +34,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/areas"
           element={
@@ -41,6 +43,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/criacao"
           element={
@@ -49,6 +52,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/elementos"
           element={
@@ -57,6 +61,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/materiais"
           element={

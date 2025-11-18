@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { getStandardModels } from "../services/modeloPadrao"; // ajuste o caminho
+import { getStandardModels } from "../services/modeloPadrao";
 
 export default function ModeloPadrao() {
   const navigate = useNavigate();
@@ -20,6 +20,7 @@ export default function ModeloPadrao() {
 
     fetchModelos();
   }, []);
+
   const filtered = modelos.filter(
     (m) => m && m.name && m.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -30,7 +31,6 @@ export default function ModeloPadrao() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <header className="flex items-center gap-4 bg-red-700 text-white px-4 py-3 shadow-md">
         <button
           onClick={() => navigate("/home")}
@@ -41,13 +41,15 @@ export default function ModeloPadrao() {
         <h1 className="font-semibold text-lg">Modelos Padrão</h1>
       </header>
 
-      <main className="max-w-5xl mx-auto p-6 flex flex-col gap-6">
-        <h2 className="text-2xl font-bold text-gray-800">
-          Selecione um modelo existente
-        </h2>
+      <main className="max-w-6xl mx-auto p-6 flex flex-col gap-10">
+        {/* TÍTULO PRINCIPAL */}
+        <div className="flex flex-col gap-2">
+          <h2 className="text-3xl font-bold text-gray-900">Modelos Salvos</h2>
+          <p className="text-gray-600 text-sm">Visualize, selecione modelos existentes.</p>
+        </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Input de busca */}
+        {/* BARRA DE BUSCA E BOTÃO */}
+        <div className="bg-white p-6 rounded-2xl shadow border border-gray-200 flex flex-col md:flex-row gap-4 items-center justify-between">
           <input
             type="text"
             placeholder="Buscar modelo..."
@@ -56,38 +58,39 @@ export default function ModeloPadrao() {
             className="flex-1 p-3 rounded-xl border border-gray-300 focus:border-red-600 focus:outline-none"
           />
 
-          {/* Botão criar modelo */}
           <button
             onClick={() => navigate("/criacao")}
-            className="bg-red-600 text-white px-6 py-3 rounded-xl hover:bg-red-700 transition"
+            className="bg-red-600 text-white px-6 py-3 rounded-xl hover:bg-red-700 transition text-sm font-medium shadow"
           >
             Criar modelo do zero
           </button>
         </div>
 
-        {filtered.length > 0 ? (
-          <div className="grid md:grid-cols-2 gap-6 mt-4">
-            {filtered.map((modelo) => (
-              <div
-                key={modelo.id}
-                className="bg-white p-5 rounded-2xl border border-gray-200 shadow hover:shadow-md transition cursor-pointer flex flex-col gap-2"
-                onClick={() => handleSelect(modelo.id)}
-              >
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {modelo.name}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Observações: {modelo.observations?.length || 0}
-                </p>
-                <span className="text-xs text-gray-500">
-                  Última edição: {modelo.ultimaEdicao}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 mt-4">Nenhum modelo encontrado.</p>
-        )}
+        {/* SEÇÃO DOS MODELOS */}
+        <section className="flex flex-col gap-6 mt-4">
+          <h3 className="text-xl font-semibold text-gray-800">Modelos Disponíveis</h3>
+
+          {filtered.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filtered.map((modelo) => (
+                <div
+                  key={modelo.id}
+                  onClick={() => handleSelect(modelo.id)}
+                  className="bg-white p-5 rounded-2xl border border-gray-200 shadow hover:shadow-lg transition cursor-pointer flex flex-col gap-3"
+                >
+                  <div className="flex flex-col gap-1">
+                    <h4 className="text-lg font-semibold text-gray-900">{modelo.name}</h4>
+                    <p className="text-sm text-gray-600">Observações: {modelo.observations?.length || 0}</p>
+                  </div>
+
+                  <span className="text-xs text-gray-500 mt-auto">Última edição: {modelo.ultimaEdicao}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 mt-4">Nenhum modelo encontrado.</p>
+          )}
+        </section>
       </main>
     </div>
   );
