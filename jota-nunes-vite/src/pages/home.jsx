@@ -12,6 +12,7 @@ import {
   MessageSquare,
   X,
   LogOut,
+  MoreVertical,
 } from "lucide-react";
 
 export default function Home() {
@@ -22,6 +23,9 @@ export default function Home() {
   const [textoObs, setTextoObs] = useState("");
 
   const navigate = useNavigate();
+
+  const role = localStorage.getItem("user_role");
+  const isRevisor = role === "reviewer";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,12 +52,15 @@ export default function Home() {
   const handleAbrirObservacao = (projeto) => {
     setProjetoSelecionado(projeto);
     setTextoObs(
-      (projeto.observations && projeto.observations.join("\n")) || ""
+      (projeto.observations &&
+        projeto.observations.map((o) => o.description).join("\n")) ||
+        ""
     );
   };
 
   const handleSalvarObservacao = () => {
     if (!projetoSelecionado) return;
+
     setProjetos((prev) =>
       prev.map((proj) =>
         proj.id === projetoSelecionado.id
@@ -61,6 +68,7 @@ export default function Home() {
           : proj
       )
     );
+
     setProjetoSelecionado(null);
     setTextoObs("");
   };
@@ -72,10 +80,9 @@ export default function Home() {
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user_role");
 
-    setTimeout(() => {
-      navigate("/");
-    }, 1200);
+    setTimeout(() => navigate("/"), 1200);
   };
 
   return (
@@ -112,11 +119,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* Conteúdo principal */}
+      {/* Conteúdo */}
       <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
-        {/* Topo com título e botão */}
+        {/* Topo */}
         <div className="hidden md:flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+
           <div className="flex gap-4">
             <button
               onClick={() => setOpen(true)}
@@ -131,148 +139,58 @@ export default function Home() {
 
         {/* Cards de resumo */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center border-t-4 border-red-600 transition hover:shadow-2xl">
-            <p className="text-gray-500">Projetos Pendentes</p>
-            <p className="text-3xl font-bold text-red-600">
-              {pendentes.length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center border-t-4 border-green-600 transition hover:shadow-2xl">
-            <p className="text-gray-500">Projetos Aprovados</p>
-            <p className="text-3xl font-bold text-green-600">
-              {aprovados.length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center border-t-4 border-gray-600 transition hover:shadow-2xl">
-            <p className="text-gray-500">Projetos Reprovados</p>
-            <p className="text-3xl font-bold text-gray-600">
-              {reprovados.length}
-            </p>
-          </div>
+          <ResumoCard
+            titulo="Projetos Pendentes"
+            valor={pendentes.length}
+            cor="red"
+          />
+          <ResumoCard
+            titulo="Projetos Aprovados"
+            valor={aprovados.length}
+            cor="green"
+          />
+          <ResumoCard
+            titulo="Projetos Reprovados"
+            valor={reprovados.length}
+            cor="gray"
+          />
         </div>
 
-        {/* Pendentes */}
+        {/* Histórico */}
         <h2 className="text-2xl font-semibold text-gray-700 mb-6">
           Histórico de Projetos
         </h2>
+
+        {/* Pendentes */}
         {pendentes.length === 0 ? (
           <p className="text-center text-gray-500 mb-10">
             Nenhum projeto pendente.
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
-            {pendentes.map((projeto) => (
-              <div
-                key={projeto.id}
-                onClick={() => handleAbrirObservacao(projeto)}
-                className="bg-white rounded-xl shadow-md hover:shadow-xl transition p-6 cursor-pointer border border-gray-100"
-              >
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-red-600" />
-                  {projeto.project_name}
-                </h3>
-                <p className="text-gray-600 mt-2 text-sm sm:text-base">
-                  Obs:{" "}
-                  {projeto.observations
-                    ?.map((obs) => obs.description)
-                    .join(", ") || "Nenhuma"}
-                </p>
-                {projeto.description && (
-                  <p className="mt-3 text-gray-700 text-sm italic border-t pt-2">
-                    “{projeto.description}”
-                  </p>
-                )}
-                <div className="mt-4 flex gap-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAprovacao(projeto.id, "aprovado");
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition"
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    Aprovar
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAprovacao(projeto.id, "reprovado");
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-white bg-gray-600 hover:bg-gray-700 transition"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    Reprovar
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ListaPendentes
+            pendentes={pendentes}
+            handleAprovacao={handleAprovacao}
+            handleAbrirObservacao={handleAbrirObservacao}
+            isRevisor={isRevisor}
+          />
         )}
 
         {/* Aprovados */}
         {aprovados.length > 0 && (
-          <>
-            <h2 className="text-2xl font-semibold text-green-700 mb-4">
-              Projetos Aprovados ✅
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
-              {aprovados.map((projeto) => (
-                <div
-                  key={projeto.id}
-                  onClick={() => handleAbrirObservacao(projeto)}
-                  className="bg-white rounded-xl shadow-md border border-green-200 p-6 cursor-pointer hover:shadow-lg transition"
-                >
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
-                    {projeto.project_name}
-                  </h3>
-                  <p className="text-gray-600 mt-2 text-sm">
-                    Local: {projeto.location}
-                  </p>
-                  <p className="text-green-700 font-semibold mt-3 text-sm">
-                    ✔ Projeto aprovado
-                  </p>
-                  {projeto.observations?.length > 0 && (
-                    <p className="mt-2 text-gray-700 italic text-sm border-t pt-2">
-                      “{projeto.observations.join(", ")}”
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
+          <SecaoProjetos
+            titulo="Projetos Aprovados"
+            cor="green"
+            lista={aprovados}
+          />
         )}
 
         {/* Reprovados */}
         {reprovados.length > 0 && (
-          <>
-            <h2 className="text-2xl font-semibold text-red-700 mb-4">
-              Projetos Reprovados ❌
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
-              {reprovados.map((projeto) => (
-                <div
-                  key={projeto.id}
-                  onClick={() => handleAbrirObservacao(projeto)}
-                  className="bg-white rounded-xl shadow-md border border-red-200 p-6 cursor-pointer hover:shadow-lg transition"
-                >
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
-                    {projeto.project_name}
-                  </h3>
-                  <p className="text-gray-600 mt-2 text-sm">
-                    Local: {projeto.location}
-                  </p>
-                  <p className="text-red-700 font-semibold mt-3 text-sm">
-                    ✖ Projeto reprovado
-                  </p>
-                  {projeto.observations?.length > 0 && (
-                    <p className="mt-2 text-gray-700 italic text-sm border-t pt-2">
-                      “{projeto.observations.join(", ")}”
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
+          <SecaoProjetos
+            titulo="Projetos Reprovados"
+            cor="red"
+            lista={reprovados}
+          />
         )}
       </main>
 
@@ -289,14 +207,14 @@ export default function Home() {
             <h3 className="text-2xl font-semibold text-gray-800 mb-4">
               Observações — {projetoSelecionado.project_name}
             </h3>
+
             <textarea
-              value={projetoSelecionado.observations
-                ?.map((obs) => obs.description)
-                .join("\n")}
+              value={textoObs}
               onChange={(e) => setTextoObs(e.target.value)}
               placeholder="Digite aqui as observações sobre o projeto..."
               className="w-full h-40 border border-gray-300 rounded-lg p-3 text-gray-800 resize-none focus:ring-2 focus:ring-red-600 outline-none"
             />
+
             <button
               onClick={handleSalvarObservacao}
               className="mt-4 w-full bg-red-700 hover:bg-red-800 text-white font-semibold py-3 rounded-lg transition"
@@ -309,3 +227,192 @@ export default function Home() {
     </div>
   );
 }
+
+
+function ResumoCard({ titulo, valor, cor }) {
+  const cores = {
+    red: "text-red-600 border-red-600",
+    green: "text-green-600 border-green-600",
+    gray: "text-gray-700 border-gray-600",
+  };
+
+  return (
+    <div
+      className={`bg-white rounded-xl shadow-lg p-6 flex flex-col items-center border-t-4 ${cores[cor]} hover:shadow-2xl transition`}
+    >
+      <p className="text-gray-500">{titulo}</p>
+      <p className={`text-3xl font-bold ${cores[cor]}`}>{valor}</p>
+    </div>
+  );
+}
+
+function ListaPendentes({
+  pendentes,
+  handleAprovacao,
+  handleAbrirObservacao,
+  isRevisor,
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
+      {pendentes.map((projeto) => (
+        <div
+          key={projeto.id}
+          onClick={() => handleAbrirObservacao(projeto)}
+          className="bg-white rounded-xl shadow-md hover:shadow-xl transition p-6 cursor-pointer border border-gray-100"
+        >
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-800 flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-red-600" />
+            {projeto.project_name}
+          </h3>
+
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">
+            Obs:{" "}
+            {projeto.observations
+              ?.map((obs) => obs.description)
+              .join(", ") || "Nenhuma"}
+          </p>
+
+          {projeto.description && (
+            <p className="mt-3 text-gray-700 text-sm italic border-t pt-2">
+              "{projeto.description}"
+            </p>
+          )}
+
+          {isRevisor && (
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAprovacao(projeto.id, "aprovado");
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition"
+              >
+                <CheckCircle className="w-5 h-5" />
+                Aprovar
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAprovacao(projeto.id, "reprovado");
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-white bg-gray-600 hover:bg-gray-700 transition"
+              >
+                <XCircle className="w-5 h-5" />
+                Reprovar
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SecaoProjetos({ titulo, cor, lista }) {
+  const borda = {
+    green: "border-green-200",
+    red: "border-red-200",
+  };
+
+  const texto = {
+    green: "text-green-700",
+    red: "text-red-700",
+  };
+
+  const [menuAberto, setMenuAberto] = useState(null); 
+
+  const toggleMenu = (id) => {
+    setMenuAberto((prev) => (prev === id ? null : id));
+  };
+
+  const fecharMenus = () => setMenuAberto(null);
+
+  useEffect(() => {
+    const handleClickFora = (e) => {
+      if (!e.target.closest(".menu-3p-card")) {
+        setMenuAberto(null);
+      }
+    };
+
+    document.addEventListener("click", handleClickFora);
+    return () => document.removeEventListener("click", handleClickFora);
+  }, []);
+
+  return (
+    <>
+      <h2 className={`text-2xl font-semibold ${texto[cor]} mb-4`}>{titulo}</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
+        {lista.map((projeto) => (
+          <div
+            key={projeto.id}
+            className={`relative bg-white rounded-xl shadow-md p-6 border ${borda[cor]} hover:shadow-lg transition`}
+          >
+
+            <div className="flex justify-between items-start">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
+                {projeto.project_name}
+              </h3>
+
+              {cor === "green" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleMenu(projeto.id);
+                  }}
+                  className="menu-3p-card p-2 hover:bg-gray-200 rounded-lg transition"
+                >
+                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                </button>
+              )}
+            </div>
+
+            {cor === "green" && menuAberto === projeto.id && (
+              <div className="menu-3p-card absolute right-4 top-12 w-44 bg-white shadow-xl rounded-xl border z-50">
+                <button
+                  className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
+                  onClick={() => {
+                    fecharMenus();
+                    alert(`Baixando DOCX do projeto ${projeto.id}`);
+                  }}
+                >
+                  Baixar .docx
+                </button>
+
+                <button
+                  className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
+                  onClick={() => {
+                    fecharMenus();
+                    alert(`Convertendo projeto ${projeto.id} em modelo padrão`);
+                  }}
+                >
+                  Tornar modelo padrão
+                </button>
+              </div>
+            )}
+
+            <p className="text-gray-600 mt-2 text-sm">
+              Local: {projeto.location || "Não informado"}
+            </p>
+
+            <p className={`${texto[cor]} font-semibold mt-3 text-sm`}>
+              {cor === "green" ? "✔ Projeto aprovado" : "✖ Projeto reprovado"}
+            </p>
+
+            {projeto.observations?.length > 0 && (
+              <p className="mt-2 text-gray-700 italic text-sm border-t pt-2">
+                “{projeto.observations
+                .map((o) => o.description)
+                .join(", ")}”
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+
+
