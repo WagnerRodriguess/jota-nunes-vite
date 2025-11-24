@@ -55,7 +55,7 @@ export default function SelecionarAreas() {
         console.log("✅ referentialIds normalizados:", referentialIds);
 
         // fetch todas as areas
-        const areasRes = await api.get("/areas/");
+        const areasRes = await api.get("/areas/names/");
         const areasPayload = areasRes?.data?.data ?? areasRes?.data ?? [];
         const areasArr = Array.isArray(areasPayload) ? areasPayload : [];
 
@@ -166,7 +166,7 @@ export default function SelecionarAreas() {
   }
 
   function areaTitle(a) {
-    return a?.area_name?.name ?? a?.name ?? `Área ${a?.id ?? ""}`;
+    return a?.name ?? `Área ${a?.id ?? ""}`;
   }
 
   function matchesSearch(text) {
@@ -242,8 +242,8 @@ export default function SelecionarAreas() {
 
       // 3) recarregar áreas
       try {
-        const areasRes = await api.get("/areas/");
-        const areasPayload = areasRes?.data?.data ?? areasRes?.data ?? [];
+        const areasRes = await api.get("/areas/names/");
+        const areasPayload = areasRes?.data?.data ?? [];
         const areasArr = Array.isArray(areasPayload) ? areasPayload : [];
         setAllAreas(areasArr);
         localStorage.setItem("allAreasCache", JSON.stringify(areasArr));
