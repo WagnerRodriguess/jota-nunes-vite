@@ -51,14 +51,52 @@ export default function Home() {
     fetchData();
   }, []);
 
-  const handleAprovacao = (id, status) => {
-    setProjetos((prev) =>
-      prev.map((proj) => (proj.id === id ? { ...proj, status } : proj))
-    );
+  // substitui o antigo handleAprovacao que salvava em localStorage
+  const handleAprovacao = async (id, status) => {
+    try {
+      const isActive = status === "aprovado";
+      // enviar booleanos — backend espera boolean para aprovation_status
+      const payload = {
+        is_active: isActive,
+        aprovation_status: isActive, // ← boolean, não string
+      };
 
-    const saved = JSON.parse(localStorage.getItem("status_map") || "{}");
-    saved[id] = status;
-    localStorage.setItem("status_map", JSON.stringify(saved));
+      const res = await api.patch(`/constructions/${id}/`, payload);
+      const updated = res?.data ?? null;
+
+      const statusText = isActive ? "aprovado" : "reprovado";
+
+      setProjetos((prev) =>
+        prev.map((proj) =>
+          proj.id === id
+            ? {
+                ...proj,
+                // manter dados retornados (is_active etc.) e atualizar texto de status usado pela UI
+                ...updated,
+                status: statusText,
+              }
+            : proj
+        )
+      );
+    } catch (error) {
+      console.error("Erro ao atualizar obra:", error);
+      alert("Erro ao atualizar obra. Verifique o console.");
+    }
+  };
+
+  // novo: excluir obra via API e remover do state
+  const handleDeleteConstruction = async (id) => {
+    if (
+      !confirm("Confirma exclusão desta obra? Esta ação não pode ser desfeita.")
+    )
+      return;
+    try {
+      await api.delete(`/constructions/${id}/`);
+      setProjetos((prev) => prev.filter((p) => p.id !== id));
+    } catch (error) {
+      console.error("Erro ao excluir obra:", error);
+      alert("Erro ao excluir obra. Verifique o console.");
+    }
   };
 
   const handleAbrirObservacao = (projeto) => {
@@ -193,6 +231,7 @@ export default function Home() {
             titulo="Projetos Aprovados"
             cor="green"
             lista={aprovados}
+            handleDelete={handleDeleteConstruction} // ← passar handler
           />
         )}
 
@@ -202,6 +241,7 @@ export default function Home() {
             titulo="Projetos Reprovados"
             cor="red"
             lista={reprovados}
+            handleDelete={handleDeleteConstruction} // ← passar handler
           />
         )}
       </main>
@@ -319,7 +359,7 @@ function ListaPendentes({
   );
 }
 
-function SecaoProjetos({ titulo, cor, lista }) {
+function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
   const borda = {
     green: "border-green-200",
     red: "border-red-200",
@@ -385,30 +425,38 @@ function SecaoProjetos({ titulo, cor, lista }) {
     }
   };
   const baixarDocumento = async (id, nomeProjeto) => {
-  try {
-    const response = await api.get(`/documents/${id}/`, {
-      responseType: "blob",
-    });
+    try {
+      const response = await api.get(`/documents/${id}/`, {
+        responseType: "blob",
+      });
 
-    const blob = new Blob([response.data], {
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    });
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
 
-    const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${nomeProjeto.replace(/ /g, "_")}.docx`;
-    document.body.appendChild(a);
-    a.click();
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${nomeProjeto.replace(/ /g, "_")}.docx`;
+      document.body.appendChild(a);
+      a.click();
 
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Erro ao baixar documento:", error);
-    alert("Erro ao baixar documento.");
-  }
-};
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erro ao baixar documento:", error);
+      alert("Erro ao baixar documento.");
+    }
+  };
+
+  // novo: excluir obra (usa handleDelete passado como prop)
+  const excluirObra = async (projeto) => {
+    fecharMenus();
+    if (typeof handleDelete === "function") {
+      await handleDelete(projeto.id);
+    }
+  };
 
   useEffect(() => {
     const handleClickFora = (e) => {
@@ -436,7 +484,8 @@ function SecaoProjetos({ titulo, cor, lista }) {
                 {projeto.project_name}
               </h3>
 
-              {cor === "green" && (
+              {/* mostrar menu para aprovadas E reprovadas */}
+              {(cor === "green" || cor === "red") && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -449,25 +498,39 @@ function SecaoProjetos({ titulo, cor, lista }) {
               )}
             </div>
 
-            {cor === "green" && menuAberto === projeto.id && (
-              <div className="menu-3p-card absolute right-4 top-12 w-44 bg-white shadow-xl rounded-xl border z-50">
-                <button
-                  className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
-                  onClick={() => {
-                  fecharMenus();
-                  baixarDocumento(projeto.id, projeto.project_name);
-                  }}
-                >
-                  Baixar .docx
-                </button>
-                <button
-                  className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
-                  onClick={() => tornarModeloPadrao(projeto)}
-                >
-                  Tornar modelo padrão
-                </button>
-              </div>
-            )}
+            {/* menu: opções diferentes dependendo do tipo (aprovada / reprovada) */}
+            {(cor === "green" || cor === "red") &&
+              menuAberto === projeto.id && (
+                <div className="menu-3p-card absolute right-4 top-12 w-44 bg-white shadow-xl rounded-xl border z-50">
+                  {cor === "green" && (
+                    <>
+                      <button
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
+                        onClick={() => {
+                          fecharMenus();
+                          baixarDocumento(projeto.id, projeto.project_name);
+                        }}
+                      >
+                        Baixar .docx
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
+                        onClick={() => tornarModeloPadrao(projeto)}
+                      >
+                        Tornar modelo padrão
+                      </button>
+                    </>
+                  )}
+
+                  {/* botão Excluir obra — visível para aprovadas e reprovadas (usuário com permissão) */}
+                  <button
+                    className="w-full text-left px-4 py-3 hover:bg-red-100 transition text-red-600"
+                    onClick={() => excluirObra(projeto)}
+                  >
+                    Excluir obra
+                  </button>
+                </div>
+              )}
 
             <p className="text-gray-600 mt-2 text-sm">
               Local: {projeto.location || "Não informado"}
