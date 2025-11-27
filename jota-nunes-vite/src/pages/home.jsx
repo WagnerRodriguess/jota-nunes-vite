@@ -40,7 +40,7 @@ export default function Home() {
 
         const mapped = data.map((c) => ({
           ...c,
-          status: savedStatus[c.id] || (c.is_active ? "pendente" : "reprovado"),
+          status: c.is_active ? "aprovado" : "reprovado",
         }));
 
         setProjetos(mapped);
@@ -58,7 +58,7 @@ export default function Home() {
       // enviar booleanos — backend espera boolean para aprovation_status
       const payload = {
         is_active: isActive,
-        aprovation_status: isActive, // ← boolean, não string
+        aprovation_status: isActive, // boolean esperado pelo backend
       };
 
       const res = await api.patch(`/constructions/${id}/`, payload);
