@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../services/axios";
 import { useNavigate } from "react-router-dom";
 import { getConstructions } from "../services/constructionService";
+import EditarObraModal from "../components/EditarObra";
 
 import NovoDocumentoModal from "../components/NovoDocumentoModal";
 import {
@@ -40,7 +41,12 @@ export default function Home() {
 
         const mapped = data.map((c) => ({
           ...c,
-          status: c.is_active ? "aprovado" : "reprovado",
+          status:
+            c.is_active === null
+              ? "pendente"
+              : c.is_active
+              ? "aprovado"
+              : "reprovado",
         }));
 
         setProjetos(mapped);
@@ -377,6 +383,19 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
   const [carregandoModelo, setCarregandoModelo] = useState(false);
   const [mensagemConfirmacao, setMensagemConfirmacao] = useState("");
   const navigate = useNavigate();
+  const [modalEditarOpen, setModalEditarOpen] = useState(false);
+  const [obraEditando, setObraEditando] = useState(null);
+
+  const atualizarObraNaLista = (obraAtualizada) => {
+    setProjetos((prev) =>
+      prev.map((p) => (p.id === obraAtualizada.id ? obraAtualizada : p))
+    );
+  };
+
+  const abrirModalEditar = (projeto) => {
+    setObraEditando(projeto);
+    setModalEditarOpen(true);
+  };
 
   const toggleMenu = (id) => {
     setMenuAberto((prev) => (prev === id ? null : id));
@@ -529,6 +548,15 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
                   >
                     Excluir obra
                   </button>
+                  <button
+                    className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
+                    onClick={() => {
+                      fecharMenus();
+                      abrirModalEditar(projeto);
+                    }}
+                  >
+                    Editar obra
+                  </button>
                 </div>
               )}
 
@@ -593,6 +621,12 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
           </div>
         </div>
       )}
+      <EditarObraModal
+        isOpen={modalEditarOpen}
+        onClose={() => setModalEditarOpen(false)}
+        projeto={obraEditando}
+        onUpdated={atualizarObraNaLista}
+      />
     </>
   );
 }
