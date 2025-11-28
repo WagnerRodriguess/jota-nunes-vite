@@ -3,6 +3,7 @@ import api from "../services/axios";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import GenericModal from "../components/GenericModal";
 
 export default function NovaObra() {
   const navigate = useNavigate();
@@ -20,6 +21,32 @@ export default function NovaObra() {
 
   const [refData, setRefData] = useState({}); // { refId: { areas: [{id,label,elements:[{id,label,materials:[{value,label}]}]}] } }
 
+  //modal
+
+  // modal de elementos
+  // modal de materiais  ⬇⬇⬇
+
+  // selects de marca e tipo
+  const [materialsBrandsOptions, setMaterialsBrandsOptions] = useState([]);
+  const [materialsTypesOptions, setMaterialsTypesOptions] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [newAreaName, setNewAreaName] = useState("");
+  const [modalAreaOpen, setModalAreaOpen] = useState(false);
+  const [modalElementOpen, setModalElementOpen] = useState(false);
+  const [newElementTypeName, setNewElementTypeName] = useState("");
+  const [newElementName, setNewElementName] = useState("");
+  const [newMaterialBrand, setNewMaterialBrand] = useState("");
+  const [newMaterialType, setNewMaterialType] = useState("");
+  const [newMaterialDescription, setNewMaterialDescription] = useState("");
+  const [selectedBrandForMaterial, setSelectedBrandForMaterial] =
+    useState(null);
+  const [selectedTypeForMaterial, setSelectedTypeForMaterial] = useState(null);
+  const [modalMaterialOpen, setModalMaterialOpen] = useState(false);
+
+  const [modalType, setModalType] = useState(null);
+
   // STEP 2
   const [areasOptions, setAreasOptions] = useState([]);
   const [elementsOptions, setElementsOptions] = useState([]);
@@ -29,11 +56,23 @@ export default function NovaObra() {
   const [loadingSave, setLoadingSave] = useState(false);
 
   // Modal para novo referencial
-  const [modalOpen, setModalOpen] = useState(false);
   const [newRefName, setNewRefName] = useState("");
+
   const [selectedAreasForModal, setSelectedAreasForModal] = useState([]);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState("");
+
+  //area
+
+  const [areas, setAreas] = useState([]);
+
+  const openReferentialModal = () => setModalType("referential");
+  const openAreaModal = () => setModalType("area");
+  const closeModal = () => {
+    setModalType(null);
+    setModalError("");
+    setNewRefName("");
+    setNewAreaName("");
+    setSelectedAreasForModal([]);
+  };
 
   // ====================================================
   // FETCH INITIAL DATA
@@ -152,10 +191,188 @@ export default function NovaObra() {
       },
     }));
   }
+  const handleCreateMaterialsBrand = async () => {
+    if (!newMaterialBrand.trim()) return;
 
-  // ====================================================
-  // MODAL PARA NOVO REFERENCIAL
-  // ====================================================
+    setModalLoading(true);
+    setModalError("");
+
+    try {
+      const res = await api.post("/materials/brands/", [
+        { name: newMaterialBrand.trim() },
+      ]);
+
+      const newBrand = res.data.data[0];
+
+      // Atualiza lista de marcas se você estiver usando Select
+      setMaterialsBrandsOptions((prev) => [
+        ...prev,
+        { value: newBrand.id, label: newBrand.name },
+      ]);
+
+      setModalMaterialBrandOpen(false);
+      setNewMaterialBrand("");
+    } catch (error) {
+      console.error(error);
+      setModalError("Não foi possível criar a marca");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  const handleCreateMaterials = async () => {
+    if (
+      !newMaterialDescription.trim() ||
+      !selectedBrandForMaterial ||
+      !selectedTypeForMaterial
+    )
+      return;
+
+    setModalLoading(true);
+    setModalError("");
+
+    try {
+      const res = await api.post("/materials/", [
+        {
+          description: newMaterialDescription.trim(),
+          brand: selectedBrandForMaterial.value,
+          material_type: selectedTypeForMaterial.value,
+        },
+      ]);
+
+      const newMaterial = res.data.data[0];
+
+      setMaterialsOptions((prev) => [
+        ...prev,
+        {
+          value: newMaterial.id,
+          label: newMaterial.description,
+        },
+      ]);
+
+      setModalMaterialOpen(false);
+      setNewMaterialDescription("");
+      setSelectedBrandForMaterial(null);
+      setSelectedTypeForMaterial(null);
+    } catch (error) {
+      console.error(error);
+      setModalError("Não foi possível criar o material");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  const handleCreateMaterialsType = async () => {
+    if (!newMaterialType.trim()) return;
+
+    setModalLoading(true);
+    setModalError("");
+
+    try {
+      const res = await api.post("/materials/types_of_materials/", [
+        { name: newMaterialType.trim() },
+      ]);
+
+      const newType = res.data.data[0];
+
+      // Atualiza lista de tipos se você estiver usando Select
+      setMaterialsTypesOptions((prev) => [
+        ...prev,
+        { value: newType.id, label: newType.name },
+      ]);
+
+      setModalMaterialTypeOpen(false);
+      setNewMaterialType("");
+    } catch (error) {
+      console.error(error);
+      setModalError("Não foi possível criar o tipo de material");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  const handleCreateElementType = async () => {
+    if (!newElementName.trim()) return;
+
+    setModalLoading(true);
+    setModalError("");
+
+    try {
+      // 1️⃣ Criar o tipo de elemento
+      const res = await api.post("/elements/types/", [
+        { name: newElementName.trim() },
+      ]);
+
+      const newType = res.data.data[0];
+      if (!newType?.id) throw new Error("Não foi possível obter o ID do tipo");
+
+      // 2️⃣ Criar o elemento baseado nesse tipo
+      const elementRes = await api.post("/elements/", [
+        {
+          element_type_id: newType.id,
+          materials: [], // começa vazio
+        },
+      ]);
+
+      const newElement = elementRes.data.data[0];
+
+      // 3️⃣ Atualizar lista usada no Select
+      setElementsOptions((prev) => [
+        ...prev,
+        {
+          value: newElement.id,
+          label: newType.name,
+        },
+      ]);
+
+      // 4️⃣ Fechar modal e limpar
+      setModalElementOpen(false);
+      setNewElementName("");
+    } catch (error) {
+      console.error(error);
+      setModalError("Não foi possível criar o elemento");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleCreateAreaName = async () => {
+    if (!newAreaName.trim()) return;
+
+    setModalLoading(true);
+    setModalError("");
+
+    try {
+      const res = await api.post("/areas/names/", [
+        { name: newAreaName.trim() },
+      ]);
+
+      const newAreaNameObj = res.data.data[0];
+
+      const areaRes = await api.post("/areas/", [
+        {
+          area_name_id: newAreaNameObj.id,
+          elements_ids: [],
+        },
+      ]);
+
+      const newArea = areaRes.data.data[0];
+
+      setAreasOptions((prev) => [
+        ...prev,
+        {
+          value: newArea.id,
+          label: newArea?.area_name.name || newArea.name,
+        },
+      ]);
+
+      setModalAreaOpen(false);
+      setNewAreaName("");
+    } catch (error) {
+      console.error(error);
+      setModalError("Não foi possível criar a área");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const handleCreateReferentialName = async () => {
     if (!newRefName.trim()) return;
 
@@ -169,11 +386,13 @@ export default function NovaObra() {
       const newRef = res.data.data[0];
       if (!newRef?.id) throw new Error("Não foi possível obter ID");
 
-      const refRes = await api.post("/referentials/", {
-        referential_name_id: newRef.id,
-        areas_ids: selectedAreasForModal,
-        comment: "",
-      });
+      const refRes = await api.post("/referentials/", [
+        {
+          referential_name_id: newRef.id,
+          areas_ids: selectedAreasForModal,
+          comment: "",
+        },
+      ]);
 
       setReferentials((prev) => [...prev, refRes.data.data[0]]);
       setModalOpen(false);
@@ -243,6 +462,7 @@ export default function NovaObra() {
         description,
         observations: selectedObservations,
         referentials: referentialsCreated,
+        // is_active: null,
       });
 
       alert("Obra criada com sucesso!");
@@ -254,6 +474,7 @@ export default function NovaObra() {
       setSelectedReferentials([]);
       setSelectedObservations([]);
       setRefData({});
+      navigate("/home");
     } catch (err) {
       console.error(err.response?.data || err);
       alert("Erro ao criar obra");
@@ -423,7 +644,16 @@ export default function NovaObra() {
                     {ref?.name || ref.referential_name?.name}
                   </h3>
 
-                  <p className="font-medium mb-1">Áreas</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium mb-1">Áreas</p>
+
+                    <button
+                      onClick={() => setModalAreaOpen(true)}
+                      className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                    >
+                      + Nova Área
+                    </button>
+                  </div>
                   <Select
                     isMulti
                     options={areasOptions}
@@ -439,33 +669,53 @@ export default function NovaObra() {
                   {refData[refId]?.areas?.map((area) => (
                     <div key={area.id} className="ml-4 mt-2">
                       <p className="font-medium">{area.label}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <Select
+                            isMulti
+                            options={elementsOptions}
+                            value={area.elements.map((el) => ({
+                              value: el.id,
+                              label: el.label,
+                            }))}
+                            onChange={(vals) =>
+                              updateElements(refId, area.id, vals)
+                            }
+                            placeholder="Selecione elementos"
+                          />
+                        </div>
 
-                      <Select
-                        isMulti
-                        options={elementsOptions}
-                        value={area.elements.map((el) => ({
-                          value: el.id,
-                          label: el.label,
-                        }))}
-                        onChange={(vals) =>
-                          updateElements(refId, area.id, vals)
-                        }
-                        placeholder="Selecione elementos"
-                      />
+                        <button
+                          onClick={() => setModalElementOpen(true)}
+                          className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                        >
+                          + Novo
+                        </button>
+                      </div>
 
                       {area.elements.map((el) => (
                         <div key={el.id} className="ml-4 mt-2">
                           <p className="text-sm font-medium">{el.label}</p>
-                          <Select
-                            isMulti
-                            options={materialsOptions}
-                            value={el.materials || []}
-                            onChange={(vals) =>
-                              updateMaterials(refId, area.id, el.id, vals)
-                            }
-                            placeholder="Selecione materiais"
-                            className="mt-1"
-                          />
+                          <div className="flex items-center gap-3 mt-1">
+                            <div className="flex-1">
+                              <Select
+                                isMulti
+                                options={materialsOptions}
+                                value={el.materials || []}
+                                onChange={(vals) =>
+                                  updateMaterials(refId, area.id, el.id, vals)
+                                }
+                                placeholder="Selecione materiais"
+                              />
+                            </div>
+
+                            <button
+                              onClick={() => setModalMaterialOpen(true)}
+                              className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                            >
+                              + Novo
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -501,34 +751,86 @@ export default function NovaObra() {
         {/* STEP 3 */}
         {step === 3 && (
           <div className="bg-white p-6 rounded-2xl shadow-md flex flex-col gap-6">
-            <h2 className="font-bold text-xl">Revisão</h2>
-            <p>
-              <b>Nome:</b> {projectName}
-            </p>
-            <p>
-              <b>Localização:</b> {location}
-            </p>
-            <p>
-              <b>Descrição:</b> {description}
-            </p>
-            <p>
-              <b>Referenciais:</b>{" "}
-              {selectedReferentials
-                .map(
-                  (id) =>
-                    referentials.find((r) => r.id === id)?.name ||
-                    referentials.find((r) => r.id === id)?.referential_name
-                      ?.name
-                )
-                .join(", ")}
-            </p>
-            <p>
-              <b>Observações:</b>{" "}
-              {selectedObservations
-                .map((id) => observations.find((o) => o.id === id)?.description)
-                .join(", ")}
-            </p>
+            <h2 className="font-bold text-xl">Revisão Completa</h2>
 
+            {/* Dados gerais */}
+            <div className="space-y-2">
+              <p>
+                <b>Nome:</b> {projectName}
+              </p>
+              <p>
+                <b>Localização:</b> {location}
+              </p>
+              <p>
+                <b>Descrição:</b> {description}
+              </p>
+            </div>
+
+            {/* Observações */}
+            <div>
+              <p className="font-bold mb-1">Observações:</p>
+              <p>
+                {selectedObservations
+                  .map(
+                    (id) => observations.find((o) => o.id === id)?.description
+                  )
+                  .join(", ")}
+              </p>
+            </div>
+
+            {/* Referenciais + Áreas + Elementos + Materiais */}
+            <div className="space-y-4">
+              <h3 className="font-bold text-lg">Estrutura da Obra</h3>
+
+              {selectedReferentials.map((refId) => {
+                const ref = referentials.find((r) => r.id === refId);
+
+                return (
+                  <div
+                    key={refId}
+                    className="border border-gray-300 rounded-xl p-4 bg-gray-50"
+                  >
+                    <h4 className="font-semibold text-lg">
+                      Referencial:{" "}
+                      {ref?.name || ref?.referential_name?.name || "Sem nome"}
+                    </h4>
+
+                    {/* Áreas */}
+                    {refData[refId]?.areas?.map((area) => (
+                      <div key={area.id} className="mt-3 ml-3 border-l pl-3">
+                        <p className="font-medium text-blue-700">
+                          Área: {area.label}
+                        </p>
+
+                        {/* Elementos */}
+                        {area.elements.map((el) => (
+                          <div key={el.id} className="ml-4 mt-2 border-l pl-3">
+                            <p className="font-medium text-green-700">
+                              Elemento: {el.label}
+                            </p>
+
+                            {/* Materiais */}
+                            {el.materials?.length > 0 ? (
+                              <ul className="ml-4 list-disc text-sm mt-1">
+                                {el.materials.map((mat, idx) => (
+                                  <li key={idx}>{mat.label}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="ml-4 text-sm text-gray-500">
+                                Nenhum material selecionado
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Botões */}
             <button
               onClick={handleSave}
               disabled={loadingSave}
@@ -548,52 +850,61 @@ export default function NovaObra() {
           </div>
         )}
       </div>
+      <GenericModal
+        isOpen={modalOpen}
+        title="Novo Referencial"
+        inputValue={newRefName}
+        onInputChange={setNewRefName}
+        onConfirm={handleCreateReferentialName}
+        isLoading={modalLoading}
+        error={modalError}
+        onClose={() => setModalOpen(false)}
+        showAreasSelect={true}
+        areasOptions={areasOptions}
+        selectedAreas={selectedAreasForModal}
+        onAreasChange={setSelectedAreasForModal}
+      />
 
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-xl shadow-lg w-96 flex flex-col gap-4">
-            <h3 className="font-bold text-lg">Novo Referencial</h3>
-            <input
-              type="text"
-              placeholder="Nome do referencial"
-              className="p-2 border rounded-md"
-              value={newRefName}
-              onChange={(e) => setNewRefName(e.target.value)}
-            />
-
-            <Select
-              isMulti
-              options={areasOptions}
-              value={selectedAreasForModal.map((id) => {
-                const area = areasOptions.find((a) => a.value === id);
-                return area ? { value: area.value, label: area.label } : null;
-              })}
-              onChange={(vals) =>
-                setSelectedAreasForModal(vals.map((v) => v.value))
-              }
-              placeholder="Selecione áreas"
-            />
-
-            {modalError && <p className="text-red-600">{modalError}</p>}
-
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-4 py-2 rounded-md bg-gray-300 hover:bg-gray-400 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreateReferentialName}
-                className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 transition"
-                disabled={modalLoading}
-              >
-                {modalLoading ? "Criando..." : "Criar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <GenericModal
+        isOpen={modalAreaOpen}
+        title="Nova Área"
+        inputValue={newAreaName}
+        onInputChange={setNewAreaName}
+        onConfirm={handleCreateAreaName}
+        isLoading={modalLoading}
+        error={modalError}
+        onClose={() => setModalAreaOpen(false)}
+        showAreasSelect={false}
+      />
+      <GenericModal
+        isOpen={modalElementOpen}
+        title="Novo Tipo de Elemento"
+        inputValue={newElementName}
+        onInputChange={setNewElementName}
+        onConfirm={handleCreateElementType}
+        isLoading={modalLoading}
+        error={modalError}
+        onClose={() => setModalElementOpen(false)}
+        showAreasSelect={false}
+      />
+      <GenericModal
+        isOpen={modalMaterialOpen}
+        title="Novo Material"
+        inputValue={newMaterialDescription}
+        onInputChange={setNewMaterialDescription}
+        onConfirm={handleCreateMaterials}
+        isLoading={modalLoading}
+        error={modalError}
+        onClose={() => setModalMaterialOpen(false)}
+        showMaterialBrandSelect={true}
+        showMaterialTypeSelect={true}
+        materialBrandOptions={materialsBrandsOptions}
+        materialTypeOptions={materialsTypesOptions}
+        selectedBrand={selectedBrandForMaterial}
+        selectedType={selectedTypeForMaterial}
+        onBrandChange={setSelectedBrandForMaterial}
+        onTypeChange={setSelectedTypeForMaterial}
+      />
     </div>
   );
 }
