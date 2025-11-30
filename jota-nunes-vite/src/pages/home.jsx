@@ -159,15 +159,27 @@ export default function Home() {
       </header>
 
       {menuAberto && (
-        <div className="md:hidden bg-red-600 text-white flex justify-around py-3">
-          <button className="hover:bg-red-500 p-2 rounded-lg transition">
-            <User />
-          </button>
-          <button className="hover:bg-red-500 p-2 rounded-lg transition">
-            <Settings />
-          </button>
-        </div>
-      )}
+  <div className="md:hidden bg-red-600 text-white flex justify-between items-center px-4 py-3">
+
+    <button className="hover:bg-red-500 p-2 rounded-lg transition">
+      <User />
+    </button>
+
+    <button
+      onClick={() => setOpen(true)}
+      className="bg-white text-red-700 px-4 py-2 rounded-lg font-semibold shadow-md flex items-center gap-2"
+    >
+      <FilePlus className="w-5 h-5" />
+      Novo Documento
+    </button>
+
+    <button className="hover:bg-red-500 p-2 rounded-lg transition">
+      <Settings />
+    </button>
+
+  </div>
+)}
+
 
       {/* Conteúdo */}
       <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
@@ -183,7 +195,7 @@ export default function Home() {
               <FilePlus className="w-5 h-5" />
               Novo Documento
             </button>
-            <NovoDocumentoModal isOpen={open} onClose={() => setOpen(false)} />
+
           </div>
         </div>
 
@@ -245,6 +257,9 @@ export default function Home() {
           />
         )}
       </main>
+
+      <NovoDocumentoModal isOpen={open} onClose={() => setOpen(false)} />
+
 
       {/* Modal Observação */}
       {projetoSelecionado && (
