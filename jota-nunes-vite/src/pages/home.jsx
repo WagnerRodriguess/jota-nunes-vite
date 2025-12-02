@@ -248,7 +248,8 @@ export default function Home() {
             titulo="Projetos Aprovados"
             cor="green"
             lista={aprovados}
-            handleDelete={handleDeleteConstruction} // ← passar handler
+            handleDelete={handleDeleteConstruction}
+            setProjetos={setProjetos}
           />
         )}
 
@@ -258,7 +259,8 @@ export default function Home() {
             titulo="Projetos Reprovados"
             cor="red"
             lista={reprovados}
-            handleDelete={handleDeleteConstruction} // ← passar handler
+            handleDelete={handleDeleteConstruction}
+            setProjetos={setProjetos}
           />
         )}
       </main>
@@ -376,7 +378,7 @@ function ListaPendentes({
   );
 }
 
-function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
+function SecaoProjetos({ titulo, cor, lista, handleDelete, setProjetos }) {
   const borda = {
     green: "border-green-200",
     red: "border-red-200",
@@ -400,7 +402,23 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
 
   const atualizarObraNaLista = (obraAtualizada) => {
     setProjetos((prev) =>
-      prev.map((p) => (p.id === obraAtualizada.id ? obraAtualizada : p))
+      prev.map((p) => {
+        if (p.id === obraAtualizada.id) {
+          // Calcular o status baseado em is_active
+          const status =
+            obraAtualizada.is_active === null
+              ? "pendente"
+              : obraAtualizada.is_active
+              ? "aprovado"
+              : "reprovado";
+
+          return {
+            ...obraAtualizada,
+            status: status,
+          };
+        }
+        return p;
+      })
     );
   };
 
