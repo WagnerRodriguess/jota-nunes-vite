@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../services/axios";
 import { useNavigate } from "react-router-dom";
 import { getConstructions } from "../services/constructionService";
+import EditarObraModal from "../components/EditarObra";
 
 import NovoDocumentoModal from "../components/NovoDocumentoModal";
 import {
@@ -19,9 +20,11 @@ import {
 
 export default function Home() {
   const [open, setOpen] = useState(false);
+
   const [projetos, setProjetos] = useState([]);
   const [menuAberto, setMenuAberto] = useState(false);
   const [projetoSelecionado, setProjetoSelecionado] = useState(null);
+
   const [textoObs, setTextoObs] = useState("");
 
   const navigate = useNavigate();
@@ -40,7 +43,12 @@ export default function Home() {
 
         const mapped = data.map((c) => ({
           ...c,
-          status: savedStatus[c.id] || (c.is_active ? "pendente" : "reprovado"),
+          status:
+            c.is_active === null
+              ? "pendente"
+              : c.is_active
+              ? "aprovado"
+              : "reprovado",
         }));
 
         setProjetos(mapped);
@@ -51,6 +59,15 @@ export default function Home() {
     fetchData();
   }, []);
 
+  async function loadConstruction(id) {
+    try {
+      const res = await api.get(`/constructions/${id}/`);
+      setObra(res.data); // Atualiza o objeto que vai para o modal
+    } catch (err) {
+      console.error("Erro ao carregar obra", err);
+    }
+  }
+
   // substitui o antigo handleAprovacao que salvava em localStorage
   const handleAprovacao = async (id, status) => {
     try {
@@ -58,7 +75,7 @@ export default function Home() {
       // enviar booleanos — backend espera boolean para aprovation_status
       const payload = {
         is_active: isActive,
-        aprovation_status: isActive, // ← boolean, não string
+        aprovation_status: isActive, // boolean esperado pelo backend
       };
 
       const res = await api.patch(`/constructions/${id}/`, payload);
@@ -243,7 +260,8 @@ export default function Home() {
             titulo="Projetos Aprovados"
             cor="green"
             lista={aprovados}
-            handleDelete={handleDeleteConstruction} // ← passar handler
+            handleDelete={handleDeleteConstruction}
+            setProjetos={setProjetos}
           />
         )}
 
@@ -253,7 +271,8 @@ export default function Home() {
             titulo="Projetos Reprovados"
             cor="red"
             lista={reprovados}
-            handleDelete={handleDeleteConstruction} // ← passar handler
+            handleDelete={handleDeleteConstruction}
+            setProjetos={setProjetos}
           />
         )}
       </main>
@@ -374,7 +393,7 @@ function ListaPendentes({
   );
 }
 
-function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
+function SecaoProjetos({ titulo, cor, lista, handleDelete, setProjetos }) {
   const borda = {
     green: "border-green-200",
     red: "border-red-200",
@@ -392,6 +411,36 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
   const [carregandoModelo, setCarregandoModelo] = useState(false);
   const [mensagemConfirmacao, setMensagemConfirmacao] = useState("");
   const navigate = useNavigate();
+
+  const [modalEditarOpen, setModalEditarOpen] = useState(false);
+  const [obraEditando, setObraEditando] = useState(null);
+
+  const atualizarObraNaLista = (obraAtualizada) => {
+    setProjetos((prev) =>
+      prev.map((p) => {
+        if (p.id === obraAtualizada.id) {
+          // Calcular o status baseado em is_active
+          const status =
+            obraAtualizada.is_active === null
+              ? "pendente"
+              : obraAtualizada.is_active
+              ? "aprovado"
+              : "reprovado";
+
+          return {
+            ...obraAtualizada,
+            status: status,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const abrirModalEditar = (projeto) => {
+    setObraEditando(projeto);
+    setModalEditarOpen(true);
+  };
 
   const toggleMenu = (id) => {
     setMenuAberto((prev) => (prev === id ? null : id));
@@ -465,7 +514,6 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
     }
   };
 
-  // novo: excluir obra (usa handleDelete passado como prop)
   const excluirObra = async (projeto) => {
     fecharMenus();
     if (typeof handleDelete === "function") {
@@ -499,7 +547,6 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
                 {projeto.project_name}
               </h3>
 
-              {/* mostrar menu para aprovadas E reprovadas */}
               {(cor === "green" || cor === "red") && (
                 <button
                   onClick={(e) => {
@@ -513,7 +560,6 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
               )}
             </div>
 
-            {/* menu: opções diferentes dependendo do tipo (aprovada / reprovada) */}
             {(cor === "green" || cor === "red") &&
               menuAberto === projeto.id && (
                 <div className="menu-3p-card absolute right-4 top-12 w-44 bg-white shadow-xl rounded-xl border z-50">
@@ -537,12 +583,20 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
                     </>
                   )}
 
-                  {/* botão Excluir obra — visível para aprovadas e reprovadas (usuário com permissão) */}
                   <button
                     className="w-full text-left px-4 py-3 hover:bg-red-100 transition text-red-600"
                     onClick={() => excluirObra(projeto)}
                   >
                     Excluir obra
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-3 hover:bg-gray-100 transition text-gray-700"
+                    onClick={() => {
+                      fecharMenus();
+                      abrirModalEditar(projeto);
+                    }}
+                  >
+                    Editar obra
                   </button>
                 </div>
               )}
@@ -607,6 +661,14 @@ function SecaoProjetos({ titulo, cor, lista, handleDelete }) {
             </button>
           </div>
         </div>
+      )}
+      {modalEditarOpen && (
+        <EditarObraModal
+          isOpen={modalEditarOpen}
+          onClose={() => setModalEditarOpen(false)}
+          projeto={obraEditando}
+          onUpdated={atualizarObraNaLista}
+        />
       )}
     </>
   );
